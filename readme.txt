@@ -4,7 +4,7 @@ Donate link: http://wpml.org
 Tags: qTranslate, wpml, multilingual, i18n, convertion, import, uninstall, cleanup
 Requires at least: 3.0
 Tested up to: 3.3.1
-Stable tag: 0.1
+Stable tag: 0.2
 License: GPLv2 or later
 
 Allows a complete uninstall and cleanup of qTranslate meta-tags or importing translations into WPML
@@ -30,7 +30,7 @@ Instructions:
 
 = Migrate all languages from qTranslate to WPML =
 
-In this mode, the QT import plugin will convert the language information from qTranslate's language tags format to WPML's post-per-language format. For this to work, you must have WPML active in the site (but not necessarily configured).
+In this mode, the QT import plugin will convert the language information from qTranslate's language tags format to WPML's post-per-language format. For this to work, you must have [WPML](http://wpml.org) active in the site (but not necessarily configured).
 
 Instructions:
 
@@ -59,9 +59,17 @@ It's been tested on WPML 2.4.3 and above. Previous versions might work, but migh
 
 This plugin has two modes of operation. Without WPML, it will let you clean the qTranslate language codes from your content and keep just one language. With WPML, you'll be able to keep all languages.
 
+= How long does the import take? =
+
+It should be a few seconds for every 100 posts (depending on your server's CPU and database access). If the import runs for 10 minutes, it probably means that something is wrong. You should contact us in WPML technical forum and get help.
+
 == Installation ==
 
 Upload the plugin to your blog, activate it.
+
+== Screenshots ==
+
+1. Import screen
 
 == Changelog ==
 
@@ -69,8 +77,14 @@ Upload the plugin to your blog, activate it.
 
 * Initial release
 
+= 0.2 =
+* Adds all custom fields to posts. If they have no translation, they are added to posts in all languages.
+* Fixes cases where the importer was stuck.
+
 == Upgrade Notice ==
 
-= 0.9 =
+= 0.1 =
 * Initial release
 
+= 0.2 =
+* Includes bug fixes and better support for custom fields

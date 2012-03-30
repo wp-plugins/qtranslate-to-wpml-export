@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: qTranslate Importer
-Plugin URI: #
-Description: #
-Version: 0.1
+Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
+Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
+Version: 0.2
 Author: OntheGoSystems
-Author URI: #
+Author URI: http://wpml.org
 Tags: #
 */
   
@@ -77,7 +77,8 @@ class QT_Importer{
         
         $response['messages'][] = __('Looking for previously imported posts.', 'qt-import');        
         //get posts 
-        $processed_posts = $wpdb->get_col("SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_qt_imported' AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')");
+        $processed_posts = $wpdb->get_col("SELECT post_id FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id 
+            WHERE meta_key = '_qt_imported' AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')");
         $where = '';
         if($processed_posts){
             $where = " ID NOT IN(" . join(',' , $processed_posts) . ") AND ";
@@ -191,7 +192,9 @@ class QT_Importer{
             $default_term = $term[$this->default_language];
             // get term id
             $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->terms} WHERE name = %s", $default_term));
+            
             if(empty($term_id)) continue;
+            
             
             // get all taxonomies
             $taxonomies = $wpdb->get_results($wpdb->prepare("SELECT term_taxonomy_id, taxonomy FROM {$wpdb->term_taxonomy} WHERE term_id = %d ", $term_id));
@@ -201,13 +204,15 @@ class QT_Importer{
             
             foreach($taxonomies as $taxonomy){
                 
-                if(!$sitepress->is_translated_taxonomy($taxonomy->taxonomy)) continue;
+                if($taxonomy->taxonomy != 'post_tag' && $taxonomy->taxonomy != 'category' &&
+                     !$sitepress->is_translated_taxonomy($taxonomy->taxonomy)) continue;
                 
                 //printf("&nbsp;Processing taxonomy  %s<br />", $taxonomy->taxonomy);
                 
                 $sitepress->set_element_language_details($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy, null, $this->default_language);
                 // get its trid
                 $trid = $sitepress->get_element_trid($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy);    
+                
                 
                 //printf("&nbsp;Set trid %d<br />", $trid);
                 
@@ -233,12 +238,51 @@ class QT_Importer{
             
         }
         
+        //adjust terms hierarchy
+        $taxonomies = $wpdb->get_results("
+            SELECT x.term_id, x.term_taxonomy_id, x.taxonomy, x.parent 
+            FROM {$wpdb->term_taxonomy} x
+            JOIN {$wpdb->prefix}icl_translations t ON x.term_taxonomy_id = t.element_id 
+                WHERE t.element_type LIKE 'tax\\_%'
+                    AND t.language_code = '" . $this->_lang_map($this->default_language) . "'
+                    AND x.parent > 0
+            ");
+        
+        foreach($taxonomies as $tax){
+            foreach($this->active_languages as $lang){
+                if($lang != $this->default_language){
+                    
+                    $trid = $sitepress->get_element_trid($tax->term_taxonomy_id, 'tax_' . $tax->taxonomy);
+                    
+                    if(empty($trid)){
+                        $sitepress->set_element_language_details($tax->term_taxonomy_id, 'tax' . $tax->taxonomy, null, $this->_lang_map($this->default_language));
+                        continue;
+                    }
+                    
+                    $trans_id = icl_object_id($tax->term_id, $tax->taxonomy, false, $lang);
+                    
+                    if($trans_id){
+                        $trans_parent = icl_object_id($tax->parent, $tax->taxonomy, false, $lang);
+                        
+                        if($trans_parent){
+                            $wpdb->update($wpdb->term_taxonomy, array('parent' => $trans_parent), array('term_id' => $trans_id, 'taxonomy' => $tax->taxonomy));
+                        }
+                    }
+                }
+            }
+        }
+        
+        $distinct_taxonomies = $wpdb->get_col("SELECT DISTINCT taxonomy FROM {$wpdb->term_taxonomy}");
+        foreach($distinct_taxonomies as $tax){
+            delete_option($tax . '_children');
+        }
+        
         
         
     }
         
     function menu_setup(){
-        add_options_page(__('qTranslate Importer', 'qt-import'), __('qTranslate Importer', 'qt-import'), 'manage_options', 'qt-import', array($this, 'menu'));        
+        add_options_page(__('qTranslate Importer', 'qt-import'), __('qTranslate Importer', 'qt-import'), 'manage_options', 'qt-import', array($this, 'menu'));    
     }
     
     function menu(){
@@ -592,7 +636,7 @@ class QT_Importer{
     }
     
     function process_post($post_id){
-        global $sitepress, $wpdb;
+        global $sitepress, $wpdb, $sitepress_settings;
         
         if(get_post_meta($post_id, '_qt_imported', true)) return;
         
@@ -656,18 +700,28 @@ class QT_Importer{
                 // only handle scalar values
                 if(!is_serialized($cf->meta_value)){
                     
-                    if(!preg_match('#<!--:([^-]+)-->#', $cf->meta_value)) continue;
+                    if(preg_match('#<!--:([^-]+)-->#', $cf->meta_value)){
                             
-                    $exp = explode('<!--:-->', $cf->meta_value);
-                    foreach($exp as $e){
-                        if(trim($e)){
-                            $int = preg_match('#<!--:([a-z]{2})-->(.*)#ims', $e, $matches);        
-                            if($int){                                
-                                $lang = $matches[1]; 
-                                $langs[$lang]['custom_fields'][$cf->meta_key] = $matches[2];
+                        $exp = explode('<!--:-->', $cf->meta_value);
+                        foreach($exp as $e){
+                            if(trim($e)){
+                                $int = preg_match('#<!--:([a-z]{2})-->(.*)#ims', $e, $matches);        
+                                if($int){                                
+                                    $lang = $matches[1]; 
+                                    $langs[$lang]['custom_fields'][$cf->meta_key] = $matches[2];
+                                }
+                            }
+                        }    
+                        
+                    }else{
+                        // copying all the other custom fields
+                        foreach($this->active_languages as $lang){
+                            if($this->default_language != $lang){
+                                $langs[$lang]['custom_fields'][$cf->meta_key] = $cf->meta_value;
                             }
                         }
-                    }    
+                    }
+                    
                 }    
             }
             
@@ -706,13 +760,13 @@ class QT_Importer{
                     unset($post_copy['ID'], $post_copy['post_name'], $post_copy['post_parent'], 
                             $post_copy['guid'], $post_copy['comment_count'], $post_copy['ancestors']);
                     
-                    $icl_sync_page_parent = $iclsettings['sync_page_parent'];
+                    if(isset($sitepress_settings['sync_page_parent'])) $icl_sync_page_parent = $sitepress_settings['sync_page_parent'];
                     $iclsettings['sync_page_parent'] = 0;
                     $sitepress->save_settings($iclsettings);
                         
                     $id = wp_insert_post($post_copy);
                     
-                    $iclsettings['sync_page_parent'] = $icl_sync_page_parent;
+                    if(isset($sitepress_settings['sync_page_parent'])) $iclsettings['sync_page_parent'] = $icl_sync_page_parent;
                     $sitepress->save_settings($iclsettings);
                     
                     update_post_meta($id, '_qt_imported', 'from-' . $post['ID']);
@@ -798,7 +852,15 @@ class QT_Importer{
         
         $sitepress->set_active_languages(array_map(array($this, '_lang_map'), $this->active_languages));
         
-        $default_categories = $sitepress->get_default_categories();
+        if(empty($sitepress_settings['default_categories'])){
+            $blog_default_cat = get_option('default_category');
+            $blog_default_cat_tax_id = $wpdb->get_var("SELECT term_taxonomy_id FROM {$wpdb->term_taxonomy} 
+                WHERE term_id='{$blog_default_cat}' AND taxonomy='category'");
+            $default_categories = array($this->_lang_map($this->default_language) => $blog_default_cat_tax_id);
+        }else{
+            $default_categories = $sitepress->get_default_categories();    
+        }
+        
         foreach($this->active_languages as $l){
             $lang = $this->_lang_map($l);
             
@@ -852,7 +914,11 @@ class QT_Importer{
             $iclsettings['language_negotiation_type'] = 3;    
         }
         
-        $iclsettings = $sitepress->save_settings($iclsettings);
+        $iclsettings['existing_content_language_verified'] = 1;
+        $iclsettings['setup_wizard_step'] = 3;
+        $iclsettings['setup_complete'] = 1;
+        
+        $sitepress->save_settings($iclsettings);
         
     }
     

@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 0.2
+Version: 0.2.2
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #
@@ -293,6 +293,11 @@ class QT_Importer{
 
             <?php 
                 $language_names = get_option('qtranslate_language_names');
+                if(empty($language_names)){
+                    $language_names = get_option('qtranslate_enabled_languages');
+                    $language_names = @array_combine($language_names, $language_names);
+                }
+                
                 if(empty($language_names)){
                     ?>
                     <p class="error"><?php _e('Please save the qTranslate settings to the datbase first.', 'qt-import') ?></p><?php 
@@ -728,7 +733,7 @@ class QT_Importer{
             //echo $post_id . "------------------------"; 
             
             // put the default language in front
-            $active_languages = array($this->default_language) + array_diff($this->active_languages, array($this->default_language));
+            $active_languages = array_merge(array($this->default_language), array_diff($this->active_languages, array($this->default_language)));
             
             foreach($active_languages as $language){
                 

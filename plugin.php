@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 0.2.2
+Version: 0.2.3
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #
@@ -18,7 +18,6 @@ class QT_Importer{
     const BATCH_SIZE = 10;
         
     function __construct(){
-        
         $this->default_language = get_option('qtranslate_default_language');
         $this->active_languages = get_option('qtranslate_enabled_languages');
         $this->url_mode         = get_option('qtranslate_url_mode');
@@ -450,6 +449,7 @@ class QT_Importer{
     function _lang_map($code){
         switch($code){
             case 'zh': $code = 'zh-hans'; break;
+            case 'pt': $code = 'pt-pt'; break;
         }
         
         return $code;
@@ -879,17 +879,23 @@ class QT_Importer{
                 
                 if(empty($translated_category)){
                        $sitepress->switch_locale($lang);
-                       $translated_category_name  = __('Uncategorized', 'sitepress');
+                       $translated_category_name  = __('Uncategorized', 'sitepress');                       
                        $sitepress->switch_locale();
                        $_POST['icl_trid'] = $default_category_trid;
                        $_POST['icl_tax_category_language'] = $lang;
                        $tmp = wp_insert_term($translated_category_name, 'category');                   
-                       $default_categories[$lang] = $tmp['term_taxonomy_id'];                   
-                       $iclsettings['default_categories'] = $default_categories;
-                       $sitepress->save_settings($iclsettings);
+                       if(is_wp_error($tmp)){
+                           $tmp = wp_insert_term($translated_category_name . ' @' . $lang, 'category');                   
+                       }
+                       if(!is_wp_error($tmp)){
+                        $default_categories[$lang] = $tmp['term_taxonomy_id'];                   
+                        $iclsettings['default_categories'] = $default_categories;
+                        $sitepress->save_settings($iclsettings);
+                       }
+                       
                 }
                 
-            }    
+            }  
         }
         
         $sitepress->set_default_language($this->_lang_map($this->default_language));

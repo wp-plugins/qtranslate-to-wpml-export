@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 0.2.3
+Version: 0.2.4
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #
@@ -219,13 +219,23 @@ class QT_Importer{
                     
                     if(($lang != $this->default_language) && isset($term[$lang])){
                         
+                        
                         //printf("&nbsp;Adding %s translation<br />", $lang);    
                         if(icl_object_id($term_id, $taxonomy->taxonomy, false, $lang)) continue;
                         
                         $translation = $term[$lang];
                         $_POST['icl_trid'] = $trid;
                         $_POST['icl_tax_'.$taxonomy->taxonomy.'_language'] = $lang;
+                        
+                        if($translation == $default_term){
+                            $translation .= ' @'.$lang;
+                        }
+                        
                         $tmp = wp_insert_term($translation, $taxonomy->taxonomy);                   
+                        if(!is_wp_error($tmp)){
+                            $sitepress->set_element_language_details($tmp['term_taxonomy_id'], 'tax_' . $taxonomy->taxonomy, $trid, $lang);    
+                        }
+                        
                         //printf("&nbsp;Added translation %s<br />", print_r($tmp, 1));
                         unset($_POST['icl_trid'], $_POST['icl_tax_'.$taxonomy->taxonomy.'_language']);
                     }
@@ -233,7 +243,6 @@ class QT_Importer{
                 
             }
             
-            //printf("<hr/>");
             
         }
         

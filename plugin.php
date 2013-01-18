@@ -459,6 +459,7 @@ class QT_Importer{
         switch($code){
             case 'zh': $code = 'zh-hans'; break;
             case 'pt': $code = 'pt-pt'; break;
+            case 'se': $code = 'sv'; break;
         }
         
         return $code;

@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 0.2.4
+Version: 1.0
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #

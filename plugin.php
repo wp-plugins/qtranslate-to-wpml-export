@@ -744,11 +744,30 @@ class QT_Importer{
             // put the default language in front
             $active_languages = array_merge(array($this->default_language), array_diff($this->active_languages, array($this->default_language)));
             
+            
+            // handle empty titles
+            foreach($active_languages as $language){
+                if(empty($langs[$language]['title']) && !empty($langs[$language]['content'])){
+                    $langs[$language]['title'] = 'Untitled-' . $language;
+                }
+            }    
+            
+            // if the post in the default language does not exist pick a different post as a 'source'            
+            if(empty($langs[$this->default_language])){
+                foreach($active_languages as $language){
+                    if($language != $this->default_language && !empty($langs[$language]['title'])){
+                        $langs[$language]['__icl_source'] = true;                        
+                        break;
+                    }
+                }    
+            }
+            
+            
             foreach($active_languages as $language){
                 
                 //echo $language . "------------------------";
                 
-                if(empty($langs[$language]['title'])) break;
+                if(empty($langs[$language]['title'])) continue; // obslt
                 
                 $post['post_title'] = $langs[$language]['title'];
                 $post['post_content'] = isset($langs[$language]['content']) ? $langs[$language]['content'] : '';
@@ -763,8 +782,7 @@ class QT_Importer{
                     remove_action('save_post', array($iclTranslationManagement, 'save_post_actions'), 11, 2); 
                 }
                 
-                if($language == $this->default_language){
-                    //print_r($post);
+                if($language == $this->default_language || !empty($langs[$language]['__icl_source'])){
                     $id = wp_update_post($post);
                     update_post_meta($post['ID'], '_qt_imported', 'original');
                 }else{

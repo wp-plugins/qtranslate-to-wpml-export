@@ -94,3 +94,6 @@ Upload the plugin to your blog, activate it.
 
 = 1.0 =
 * More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
+
+= 1.1 =
+* Bug fixes: contents not being visible after import in some circumstances and others.

@@ -3,7 +3,7 @@ Contributors: OnTheGoSystems
 Donate link: http://wpml.org
 Tags: qTranslate, wpml, multilingual, i18n, convertion, import, uninstall, cleanup
 Requires at least: 3.0
-Tested up to: 3.5
+Tested up to: 3.6
 Stable tag: 1.0
 License: GPLv2 or later
 

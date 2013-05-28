@@ -4,7 +4,7 @@ Donate link: http://wpml.org
 Tags: qTranslate, wpml, multilingual, i18n, convertion, import, uninstall, cleanup
 Requires at least: 3.0
 Tested up to: 3.6
-Stable tag: 1.0
+Stable tag: 1.2
 License: GPLv2 or later
 
 Allows a complete uninstall and cleanup of qTranslate meta-tags or importing translations into WPML
@@ -97,3 +97,6 @@ Upload the plugin to your blog, activate it.
 
 = 1.1 =
 * Bug fixes: contents not being visible after import in some circumstances and others.
+
+= 1.2 =
+* Bug fix: correct language mapping for Hebrew.

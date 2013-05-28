@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 1.1
+Version: 1.2
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #
@@ -466,6 +466,7 @@ class QT_Importer{
             case 'zh': $code = 'zh-hans'; break;
             case 'pt': $code = 'pt-pt'; break;
             case 'se': $code = 'sv'; break;
+            case 'iw': $code = 'he'; break;
         }
         
         return $code;
@@ -708,6 +709,7 @@ class QT_Importer{
                         $int = preg_match('#<!--:([a-z]{2})-->(.*)#ims', $e, $matches);        
                         if($int){
                             $lang = $matches[1]; 
+                            if(!isset($langs[$lang]['content'])) $langs[$lang]['content'] = '';
                             $langs[$lang]['content'] .= '<!--more-->' . $matches[2];
                         }
                     }

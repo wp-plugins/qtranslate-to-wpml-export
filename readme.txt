@@ -73,32 +73,31 @@ Upload the plugin to your blog, activate it.
 
 == Changelog ==
 
-= 0.1 =
-
-* Initial release
-
-= 0.2 =
-* Adds all custom fields to posts. If they have no translation, they are added to posts in all languages.
-* Fixes cases where the importer was stuck.
-
-= 0.2.2 =
-* Bug fixes
-
-= 1.0 =
-* More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
-
-= 1.1 =
-* Bug fixes: contents not being visible after import in some circumstances and others.
-
-= 1.2 =
-* Bug fix: correct language mapping for Hebrew.
-
 = 1.3 =
 * Tested with WP 3.9.1
 * Feature: using batches for taxonomies
 * Bug fix: import custom post types
 * Bug fix: copy content/title/excerpt to default language if translations don't exists
 * Added "No" and "cz" codes to language mapping
+
+= 1.2 =
+* Bug fix: correct language mapping for Hebrew.
+
+= 1.1 =
+* Bug fixes: contents not being visible after import in some circumstances and others.
+
+= 0.2.2 =
+* Bug fixes
+
+= 0.2 =
+* Adds all custom fields to posts. If they have no translation, they are added to posts in all languages.
+* Fixes cases where the importer was stuck.
+
+= 1.0 =
+* More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
+
+= 0.1 =
+* Initial release
 
 == Upgrade Notice ==
 

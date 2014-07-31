@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 1.2
+Version: 1.3
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: #
@@ -25,6 +25,7 @@ class QT_Importer{
         add_action('init', array($this, 'init'), 100);
         add_action('admin_menu', array($this, 'menu_setup'));
         
+        add_action('wp_ajax_qt_terms_ajx', array($this, '_import_terms'));
         add_action('wp_ajax_qt_import_ajx', array($this, 'import_ajx'));
         add_action('wp_ajax_qt_fix_links_ajx', array($this, 'fix_links_ajx'));
         add_action('wp_ajax_qt_clean_ajx', array($this, 'clean_ajx'));
@@ -55,24 +56,15 @@ class QT_Importer{
     }
     
     function import_ajx(){
-        global $wpdb;
+        if( !wp_verify_nonce( $_POST['qt_nonce'], 'qt_import_ajx' ) ){
+            $response['messages'][] = __('Invalid nonce', 'qt-import');
+            $response['keepgoing'] = 0;
 
-        if(empty($_POST['qt_keepgoing'])){
-            
-            $qtimport_status = get_option('_qt_import_status');
-            if(empty($qtimport_status['settings'])){
-                $response['messages'][] = __('Copying settings to WPML.', 'qt-import');
-                $this->map_wpml_settings();
-                $this->_set_progress('settings', 1);
-            }
-            
-            if(empty($qtimport_status['terms'])){
-                $response['messages'][] = __('Importing terms.', 'qt-import');
-                $this->_import_terms();
-                $this->_set_progress('terms', 1);
-            }
-            
+            echo json_encode($response);
+            exit;
         }
+
+        global $wpdb;
         
         $response['messages'][] = __('Looking for previously imported posts.', 'qt-import');        
         //get posts 
@@ -132,6 +124,14 @@ class QT_Importer{
     }
     
     function fix_links_ajx(){
+        if( !wp_verify_nonce( $_POST['qt_nonce'], 'qt_fix_links_ajx' ) ){
+            $response['messages'][] = __('Invalid nonce', 'qt-import');
+            $response['keepgoing'] = 0;
+
+            echo json_encode($response);
+            exit;
+        }
+
         global $wpdb;
         //get posts 
         $posts = $wpdb->get_col("
@@ -186,110 +186,219 @@ class QT_Importer{
     }
     
     function _import_terms(){
+
+        if( !wp_verify_nonce( $_POST['qt_nonce'], 'qt_terms_ajx' ) ){
+            $response['messages'][] = __('Invalid nonce', 'qt-import');
+            $response['keepgoing'] = 0;
+
+            echo json_encode($response);
+            exit;
+        }
+
         global $wpdb, $sitepress;
-        
-        $term_translations = get_option('qtranslate_term_name');
-        
-        foreach($term_translations as $term){
-            
-            $default_term = $term[$this->default_language];
-            // get term id
-            $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->terms} WHERE name = %s", $default_term));
-            
-            if(empty($term_id)) continue;
-            
-            
-            // get all taxonomies
-            $taxonomies = $wpdb->get_results($wpdb->prepare("SELECT term_taxonomy_id, taxonomy FROM {$wpdb->term_taxonomy} WHERE term_id = %d ", $term_id));
-            
-            //printf("Processing %s (%d) <br />", $default_term, $term_id);
-            //printf("Taxonomies %s<br />", print_r($taxonomies, 1));
-            
-            foreach($taxonomies as $taxonomy){
-                
-                if($taxonomy->taxonomy != 'post_tag' && $taxonomy->taxonomy != 'category' &&
-                     !$sitepress->is_translated_taxonomy($taxonomy->taxonomy)) continue;
-                
-                //printf("&nbsp;Processing taxonomy  %s<br />", $taxonomy->taxonomy);
-                
-                $sitepress->set_element_language_details($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy, null, $this->default_language);
-                // get its trid
-                $trid = $sitepress->get_element_trid($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy);    
-                
-                
-                //printf("&nbsp;Set trid %d<br />", $trid);
-                
+
+        if(isset($_POST['qt_terms_keepgoing']) && empty($_POST['qt_terms_keepgoing'])){
+
+            $qtimport_status = get_option('_qt_import_status');
+            if(empty($qtimport_status['settings'])){
+                $response['messages'][] = __('Copying settings to WPML.', 'qt-import');
+                $this->map_wpml_settings();
+                $this->_set_progress('settings', 1);
+            }
+
+            //check if all terms exists in qtranslate terms_array
+            $terms = get_terms( array( 'post_tag', 'category' ), array( 'fields' => 'names' ) );
+            $terms = array_unique( $terms );
+
+            $qtranslate_translated_terms = get_option( 'qtranslate_term_name' );
+            $enabled_languages = get_option( 'qtranslate_enabled_languages' );
+
+            foreach( $terms as $term ){
+
+                if( !isset( $qtranslate_translated_terms[$term] ) ){
+                    foreach( $enabled_languages as $lang ) {
+                        $qtranslate_translated_terms[$term][$lang]  = htmlspecialchars( $term, ENT_NOQUOTES );
+                    }
+                }
+            }
+
+            update_option( 'qtranslate_term_name', $qtranslate_translated_terms );
+
+        }
+
+        $response['messages'][] = __('Importing terms.', 'qt-import');
+
+        $qt_terms_batch = isset($_POST['qt_terms_batch']) ? $_POST['qt_terms_batch'] : 1;
+        $response['messages'][] = sprintf(__('Fixing terms: batch #%d.', 'qt-import'), $qt_terms_batch);
+
+        $term_translations = get_option( 'temp_qtranslate_terms' );
+
+        if( !$term_translations ){
+            $term_translations = get_option( 'qtranslate_term_name' );
+            if( $term_translations ){
+                update_option( 'temp_qtranslate_terms', $term_translations );
+            }else{
+                $response['messages'][] = __('No terms need to be fixed.', 'qt-import');
+                $response['keepgoing'] = 0;
+
+                echo json_encode($response);
+                exit;
+            }
+        }
+
+        if ( is_array( $term_translations ) ){
+            $i = 0;
+            foreach ( $term_translations as $key => $term ){
+                if($i >= self::BATCH_SIZE){
+                    break;
+                }
+                $i++;
+                unset($term_translations[$key]);
+
+                $default_term = $term[$this->_lang_map($this->default_language)];
+                // get term id
+                $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->terms} WHERE name = %s", $default_term));
+
+                if(empty($term_id)){
+                    continue;
+                }
+
+                // get all taxonomies
+                $taxonomies = $wpdb->get_results($wpdb->prepare("SELECT term_taxonomy_id, taxonomy FROM {$wpdb->term_taxonomy} WHERE term_id = %d ", $term_id));
+
+                foreach($taxonomies as $taxonomy){
+
+                    if($taxonomy->taxonomy != 'post_tag' && $taxonomy->taxonomy != 'category' &&
+                        !$sitepress->is_translated_taxonomy($taxonomy->taxonomy)) continue;
+
+                    $sitepress->set_element_language_details($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy, null, $this->_lang_map($this->default_language));
+                    // get its trid
+                    $trid = $sitepress->get_element_trid($taxonomy->term_taxonomy_id, 'tax_' . $taxonomy->taxonomy);
+
+                    foreach($this->active_languages as $lang){
+
+                        if(($lang != $this->default_language) && isset($term[$lang])){
+
+                            if(icl_object_id($term_id, $taxonomy->taxonomy, false, $this->_lang_map($lang))) continue;
+
+                            $translation = $term[$lang];
+                            $_POST['icl_trid'] = $trid;
+                            $_POST['icl_tax_'.$taxonomy->taxonomy.'_language'] = $this->_lang_map($lang);
+
+                            if($translation == $default_term){
+                                $translation .= ' @' . $this->_lang_map($lang);
+                            }
+
+                            $tmp = wp_insert_term($translation, $taxonomy->taxonomy);
+                            if(!is_wp_error($tmp)){
+                                $sitepress->set_element_language_details($tmp['term_taxonomy_id'], 'tax_' . $taxonomy->taxonomy, $trid, $this->_lang_map($lang));
+                            }
+
+                            unset($_POST['icl_trid'], $_POST['icl_tax_'.$taxonomy->taxonomy.'_language']);
+                        }
+                    }
+
+                }
+            }
+
+            if( $term_translations ){
+            update_option( 'temp_qtranslate_terms', $term_translations );
+            }else{
+                update_option( 'temp_qtranslate_terms', 1 );
+            }
+
+            $response['messages'][] = sprintf(__('Finished import batch #%d. Imported %d terms.', 'qt-import'), $qt_terms_batch, self::BATCH_SIZE);
+
+            $response['messages'][] = __('Preparing next batch.', 'qt-import');
+            $response['keepgoing'] = 1;
+        }else{
+            $taxonomies = get_option( 'temp_hierarchy_terms' );
+
+            if( !$taxonomies ){
+                //adjust terms hierarchy
+                $taxonomies = $wpdb->get_results("
+                    SELECT x.term_id, x.term_taxonomy_id, x.taxonomy, x.parent
+                    FROM {$wpdb->term_taxonomy} x
+                    JOIN {$wpdb->prefix}icl_translations t ON x.term_taxonomy_id = t.element_id
+                        WHERE t.element_type LIKE 'tax\\_%'
+                            AND t.language_code = '" . $this->_lang_map($this->default_language) . "'
+                            AND x.parent > 0
+                    ");
+                $qt_terms_batch = 1; //reset batch value
+            }
+
+            $i = 0;
+            foreach( $taxonomies as $key => $tax ){
+
+                if( $i >= self::BATCH_SIZE ){
+                    break;
+                }
+                $i++;
+                unset( $taxonomies[$key] );
+
                 foreach($this->active_languages as $lang){
-                    
-                    if(($lang != $this->default_language) && isset($term[$lang])){
-                        
-                        
-                        //printf("&nbsp;Adding %s translation<br />", $lang);    
-                        if(icl_object_id($term_id, $taxonomy->taxonomy, false, $lang)) continue;
-                        
-                        $translation = $term[$lang];
-                        $_POST['icl_trid'] = $trid;
-                        $_POST['icl_tax_'.$taxonomy->taxonomy.'_language'] = $lang;
-                        
-                        if($translation == $default_term){
-                            $translation .= ' @'.$lang;
+                    if($lang != $this->default_language){
+
+                        $trid = $sitepress->get_element_trid($tax->term_taxonomy_id, 'tax_' . $tax->taxonomy);
+
+                        if(empty($trid)){
+                            $sitepress->set_element_language_details($tax->term_taxonomy_id, 'tax' . $tax->taxonomy, null, $this->_lang_map($this->default_language));
+                            continue;
                         }
-                        
-                        $tmp = wp_insert_term($translation, $taxonomy->taxonomy);                   
-                        if(!is_wp_error($tmp)){
-                            $sitepress->set_element_language_details($tmp['term_taxonomy_id'], 'tax_' . $taxonomy->taxonomy, $trid, $lang);    
-                        }
-                        
-                        //printf("&nbsp;Added translation %s<br />", print_r($tmp, 1));
-                        unset($_POST['icl_trid'], $_POST['icl_tax_'.$taxonomy->taxonomy.'_language']);
-                    }
-                }
-                
-            }
-            
-            
-        }
-        
-        //adjust terms hierarchy
-        $taxonomies = $wpdb->get_results("
-            SELECT x.term_id, x.term_taxonomy_id, x.taxonomy, x.parent 
-            FROM {$wpdb->term_taxonomy} x
-            JOIN {$wpdb->prefix}icl_translations t ON x.term_taxonomy_id = t.element_id 
-                WHERE t.element_type LIKE 'tax\\_%'
-                    AND t.language_code = '" . $this->_lang_map($this->default_language) . "'
-                    AND x.parent > 0
-            ");
-        
-        foreach($taxonomies as $tax){
-            foreach($this->active_languages as $lang){
-                if($lang != $this->default_language){
-                    
-                    $trid = $sitepress->get_element_trid($tax->term_taxonomy_id, 'tax_' . $tax->taxonomy);
-                    
-                    if(empty($trid)){
-                        $sitepress->set_element_language_details($tax->term_taxonomy_id, 'tax' . $tax->taxonomy, null, $this->_lang_map($this->default_language));
-                        continue;
-                    }
-                    
-                    $trans_id = icl_object_id($tax->term_id, $tax->taxonomy, false, $lang);
-                    
-                    if($trans_id){
-                        $trans_parent = icl_object_id($tax->parent, $tax->taxonomy, false, $lang);
-                        
-                        if($trans_parent){
-                            $wpdb->update($wpdb->term_taxonomy, array('parent' => $trans_parent), array('term_id' => $trans_id, 'taxonomy' => $tax->taxonomy));
+
+                        $trans_id = icl_object_id($tax->term_id, $tax->taxonomy, false, $this->_lang_map($lang));
+
+                        if($trans_id){
+                            $trans_parent = icl_object_id($tax->parent, $tax->taxonomy, false, $this->_lang_map($lang));
+
+                            if($trans_parent){
+                                $wpdb->update($wpdb->term_taxonomy, array('parent' => $trans_parent), array('term_id' => $trans_id, 'taxonomy' => $tax->taxonomy));
+                            }
                         }
                     }
                 }
             }
+
+            update_option( 'temp_hierarchy_terms', $taxonomies );
+
+            $response['messages'][] = sprintf(__('Finished adjust terms hierarchy batch #%d.', 'qt-import'), $qt_terms_batch, self::BATCH_SIZE);
+
+            if( $taxonomies ){
+
+                $response['messages'][] = __('Preparing next batch.', 'qt-import');
+                $response['keepgoing'] = 1;
+
+            }else{
+                delete_option( 'temp_qtranslate_terms' );
+                delete_option( 'temp_hierarchy_terms' );
+
+                $distinct_taxonomies = $wpdb->get_col("SELECT DISTINCT taxonomy FROM {$wpdb->term_taxonomy}");
+                foreach($distinct_taxonomies as $tax){
+                    delete_option($tax . '_children');
+                }
+
+                $ttypes = array('category', 'post_tag');
+                $taxs = $wpdb->get_results("SELECT * FROM {$wpdb->term_taxonomy} WHERE taxonomy IN ('".join("','", $ttypes)."')");
+                foreach($taxs as $t){
+                    $tid = $wpdb->get_var($wpdb->prepare("SELECT translation_id FROM {$wpdb->prefix}icl_translations WHERE element_type=%s AND element_id=%d", 'tax_' . $t->taxonomy, $t->term_taxonomy_id));
+                    if(!$tid){
+                        $sitepress->set_element_language_details($t->term_taxonomy_id,
+                            'tax_' . $t->taxonomy, null, $sitepress->get_default_language());
+                    }
+                }
+
+                $response['keepgoing'] = 0;
+                $response['messages'][] = __('Finished fixing terms.', 'qt-import');
+
+                $this->_set_progress('terms', 1);
+            }
         }
-        
-        $distinct_taxonomies = $wpdb->get_col("SELECT DISTINCT taxonomy FROM {$wpdb->term_taxonomy}");
-        foreach($distinct_taxonomies as $tax){
-            delete_option($tax . '_children');
-        }
-        
-        
+
+        $response['messages'][] = '****************************************<br />';
+
+        echo json_encode($response);
+        exit;
+
         
     }
         
@@ -443,14 +552,15 @@ class QT_Importer{
                     </form>
                     
                 </div>
-            
+                <?php wp_nonce_field('qt_terms_ajx', 'qt_terms')?>
+                <?php wp_nonce_field('qt_import_ajx', 'qt_import')?>
+                <?php wp_nonce_field('qt_fix_links_ajx', 'qt_links'); global $wpdb; ?>
             <?php endif; ?>
-            
+
             <br /><br /><br />
             <hr />
             <p><a href="http://wpml.org/?page_id=49021"><?php _e('qTranslate Importer Guide', 'qt-import')?></a></p>
-            
-        </div>        
+        </div>
         <?php
     }
     
@@ -467,6 +577,8 @@ class QT_Importer{
             case 'pt': $code = 'pt-pt'; break;
             case 'se': $code = 'sv'; break;
             case 'iw': $code = 'he'; break;
+            case 'No': $code = 'nb'; break;
+            case 'cz': $code = 'cs'; break;
         }
         
         return $code;
@@ -684,6 +796,8 @@ class QT_Importer{
                     if($int){
                         $lang = $matches[1]; 
                         $langs[$lang]['title'] = $matches[2];
+                    }else{
+                        $langs[$this->default_language]['title'] = $e;
                     }
                 }
             }
@@ -699,6 +813,8 @@ class QT_Importer{
                     if($int){
                         $lang = $matches[1]; 
                         $langs[$lang]['content'] = $matches[2];
+                    }else{
+                        $langs[$this->default_language]['content'] = $e;
                     }
                 }
             } 
@@ -711,6 +827,8 @@ class QT_Importer{
                             $lang = $matches[1]; 
                             if(!isset($langs[$lang]['content'])) $langs[$lang]['content'] = '';
                             $langs[$lang]['content'] .= '<!--more-->' . $matches[2];
+                        }else{
+                            $langs[$this->default_language]['content'] .= '<!--more-->' . $e;
                         }
                     }
                 } 
@@ -724,6 +842,8 @@ class QT_Importer{
                     if($int){
                         $lang = $matches[1]; 
                         $langs[$lang]['excerpt'] = $matches[2];
+                    }else{
+                        $langs[$this->default_language]['excerpt'] =  $e;
                     }
                 }
             }    
@@ -819,6 +939,10 @@ class QT_Importer{
                     
                     if(isset($sitepress_settings['sync_page_parent'])) $icl_sync_page_parent = $sitepress_settings['sync_page_parent'];
                     $iclsettings['sync_page_parent'] = 0;
+
+                    if( !in_array( $post['post_type'] , array( 'post', 'page' ) ) )
+                        $iclsettings['custom_posts_sync_option'][$post['post_type']] = 1;
+
                     $sitepress->save_settings($iclsettings);
                         
                     $id = wp_insert_post($post_copy);
@@ -837,7 +961,7 @@ class QT_Importer{
                         if($terms){
                             $translated_terms = array();
                             foreach($terms as $term){
-                                $translated_term = icl_object_id($term->term_id, $tax, false, $language);
+                                $translated_term = icl_object_id($term->term_id, $tax, false, $this->_lang_map($language));
                                 if($translated_term){
                                     $translated_terms[] = intval($translated_term);
                                 }
@@ -980,6 +1104,7 @@ class QT_Importer{
             $iclsettings['language_negotiation_type'] = 1;    
         }elseif(get_option('qtranslate_url_mode') == 3){
             $iclsettings['language_negotiation_type'] = 2;    
+            $qt_enabled_languages = get_option('qtranslate_enabled_languages');
             foreach($qt_enabled_languages as $lang){
                 $exp = explode(',', $_SERVER['HTTP_HOST']);
                 if(count($exp > 2)){

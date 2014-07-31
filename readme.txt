@@ -84,14 +84,6 @@ Upload the plugin to your blog, activate it.
 = 0.2.2 =
 * Bug fixes
 
-== Upgrade Notice ==
-
-= 0.1 =
-* Initial release
-
-= 0.2 =
-* Includes bug fixes and better support for custom fields
-
 = 1.0 =
 * More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
 
@@ -107,3 +99,13 @@ Upload the plugin to your blog, activate it.
 * Bug fix: import custom post types
 * Bug fix: copy content/title/excerpt to default language if translations don't exists
 * Added "No" and "cz" codes to language mapping
+
+== Upgrade Notice ==
+
+= 0.1 =
+* Initial release
+
+= 0.2 =
+* Includes bug fixes and better support for custom fields
+
+

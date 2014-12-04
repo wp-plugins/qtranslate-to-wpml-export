@@ -3,10 +3,10 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 1.3
+Version: 1.4
 Author: OntheGoSystems
 Author URI: http://wpml.org
-Tags: #
+Tags: wpml, qtranslate, multilingual, translations
 */
   
 
@@ -65,7 +65,7 @@ class QT_Importer{
         }
 
         global $wpdb;
-        
+
         $response['messages'][] = __('Looking for previously imported posts.', 'qt-import');        
         //get posts 
         $processed_posts = $wpdb->get_col("SELECT post_id FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id 
@@ -107,9 +107,9 @@ class QT_Importer{
                 $this->_set_progress('hierarchy', 1);
                 
                 $response['keepgoing'] = 0;
-                //$response['keepgoing'] = 1;
+
                 $response['messages'][] = __('Start fixing links.', 'qt-import');        
-                //$response['next_operation'] = 'fix-links';
+
             }
         }else{
             $response['messages'][] = __('No posts to import.', 'qt-import');        
@@ -285,7 +285,7 @@ class QT_Importer{
                             $_POST['icl_trid'] = $trid;
                             $_POST['icl_tax_'.$taxonomy->taxonomy.'_language'] = $this->_lang_map($lang);
 
-                            if($translation == $default_term){
+                            if($translation == $default_term && defined( 'ICL_SITEPRESS_VERSION' ) && version_compare( ICL_SITEPRESS_VERSION, '3.1.8.2', '<=' ) ){
                                 $translation .= ' @' . $this->_lang_map($lang);
                             }
 
@@ -481,7 +481,13 @@ class QT_Importer{
                 
                 <p><?php _e("If you're interested in keeping all languages, in a multilingual site, you'll need WPML. You can get it from here: <a href=\"http://wpml.org/purchase/\">WPML</a>", 'qt-import');?></p>
                 
-            <?php else: ?>            
+            <?php else: ?>
+
+                <?php
+                $disabled = '';
+                if(defined( 'ICL_SITEPRESS_VERSION' ) && defined('QTRANS_INIT')): $disabled = 'disabled="disabled"'; ?>
+                    <div class="message error"><p><?php _e('Please deactivate qTranslate plugin before run import process to WPML','qt-import'); ?></p></div>
+                <?php endif; ?>
                 
                 <p><?php _e('What is imported:', 'qt-import') ?></p>
                 <ul style="list-style: disc;margin-left: 20px;">
@@ -519,10 +525,10 @@ class QT_Importer{
                 
                 <?php if(empty($qtimport_status['ALL_FINISHED'])): ?>
                 <p>     
-                    <label><input type="checkbox" name="confirm_import" id="confirm_import" value="1" />&nbsp;
+                    <label><input type="checkbox" name="confirm_import" id="confirm_import" value="1" <?php echo $disabled; ?> />&nbsp;
                         <?php _e('I understand that this process will process all the content in my site and convert it from using qTranslate to WPML' , 'qt-import'); ?></label>                         </p>
                 <p>     
-                    <label><input type="checkbox" name="confirm_dbbk" id="confirm_dbbk" value="1" />&nbsp;
+                    <label><input type="checkbox" name="confirm_dbbk" id="confirm_dbbk" value="1" <?php echo $disabled; ?> />&nbsp;
                         <?php _e('I have created backup for my database' , 'qt-import'); ?></label>                         
                 </p>
                 <?php endif; ?>
@@ -581,7 +587,7 @@ class QT_Importer{
             case 'cz': $code = 'cs'; break;
         }
         
-        return $code;
+        return strtolower($code);
     }
     
     function clean_ajx(){
@@ -925,7 +931,6 @@ class QT_Importer{
                     $trid = $sitepress->get_element_trid($post['ID'], 'post' . $post['post_type']);
                     if(is_null($trid)){
                         $sitepress->set_element_language_details($post['ID'], 'post_' . $post['post_type'], null, $this->_lang_map($this->default_language));
-                        //$_POST['icl_trid'] = $sitepress->get_element_trid($post['ID'], 'post_' . $post['post_type']);    
                     }
                     
                     $id = wp_update_post($post);
@@ -1078,7 +1083,11 @@ class QT_Importer{
                     $tmp = wp_insert_term($translated_category_name, 'category');                   
                     
                     if(is_wp_error($tmp)){
-                        $tmp = wp_insert_term($translated_category_name . ' @' . $lang, 'category');                   
+                        if( defined( 'ICL_SITEPRESS_VERSION' ) && version_compare( ICL_SITEPRESS_VERSION, '3.1.8.2', '<=' ) ){
+                            $tmp = wp_insert_term($translated_category_name . ' @' . $lang, 'category');
+                        }else{
+                            $tmp = wp_insert_term($translated_category_name, 'category');
+                        }
                     }
                     $sitepress->switch_locale();                       
                     if(!is_wp_error($tmp)){                        
@@ -1284,7 +1293,6 @@ class QT_Importer{
                 }elseif($this->url_mode == 2){
                 
                     $from  = str_replace($home_url, '', $from);
-                    //$from  = preg_replace('@^https?://([^/]+)@', '', $from);
                     
                     $from  = str_replace(array('.', '?', '*', '+'), array('\.', '\?', '\*', '\+'), $from);
                     $out .= sprintf("RewriteRule ^%s %s [L,R=301]\n", ltrim($from, '/'), $to);                 

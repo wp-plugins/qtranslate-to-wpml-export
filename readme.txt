@@ -1,10 +1,10 @@
 === qTranslate Cleanup and WPML Import ===
 Contributors: OnTheGoSystems
 Donate link: http://wpml.org
-Tags: qTranslate, wpml, multilingual, i18n, convertion, import, uninstall, cleanup
+Tags: qTranslate, wpml, multilingual, i18n, conversion, import, uninstall, cleanup
 Requires at least: 3.0
-Tested up to: 3.9.1
-Stable tag: 1.3
+Tested up to: 4.0
+Stable tag: 1.4
 License: GPLv2 or later
 
 Allows a complete uninstall and cleanup of qTranslate meta-tags or importing translations into WPML
@@ -73,16 +73,37 @@ Upload the plugin to your blog, activate it.
 
 == Changelog ==
 
-= 0.1 =
+= 1.4 =
+* Tested with WP 4.0
+* Added dependency for disable qTranslate before import to WPML
+* Added compatibility with WPML 3.1.8.*
+* Bug fix: convert language codes from uppercase to lowercase
 
-* Initial release
+= 1.3 =
+* Tested with WP 3.9.1
+* Feature: using batches for taxonomies
+* Bug fix: import custom post types
+* Bug fix: copy content/title/excerpt to default language if translations don't exists
+* Added "No" and "cz" codes to language mapping
+
+= 1.2 =
+* Bug fix: correct language mapping for Hebrew.
+
+= 1.1 =
+* Bug fixes: contents not being visible after import in some circumstances and others.
+
+= 0.2.2 =
+* Bug fixes
 
 = 0.2 =
 * Adds all custom fields to posts. If they have no translation, they are added to posts in all languages.
 * Fixes cases where the importer was stuck.
 
-= 0.2.2 =
-* Bug fixes
+= 1.0 =
+* More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
+
+= 0.1 =
+* Initial release
 
 == Upgrade Notice ==
 
@@ -92,18 +113,4 @@ Upload the plugin to your blog, activate it.
 = 0.2 =
 * Includes bug fixes and better support for custom fields
 
-= 1.0 =
-* More bug fixes: importing terms, handling posts without titles, posts without translation in the default language and more
 
-= 1.1 =
-* Bug fixes: contents not being visible after import in some circumstances and others.
-
-= 1.2 =
-* Bug fix: correct language mapping for Hebrew.
-
-= 1.3 =
-* Tested with WP 3.9.1
-* Feature: using batches for taxonomies
-* Bug fix: import custom post types
-* Bug fix: copy content/title/excerpt to default language if translations don't exists
-* Added "No" and "cz" codes to language mapping

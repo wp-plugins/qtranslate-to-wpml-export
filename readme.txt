@@ -3,13 +3,19 @@ Contributors: OnTheGoSystems
 Donate link: http://wpml.org
 Tags: qTranslate, wpml, multilingual, i18n, conversion, import, uninstall, cleanup
 Requires at least: 3.0
-Tested up to: 4.0
-Stable tag: 1.4
+Tested up to: 4.1
+Stable tag: 1.5
 License: GPLv2 or later
 
 Allows a complete uninstall and cleanup of qTranslate meta-tags or importing translations into WPML
 
 == Description ==
+
+**End of development: as of version 1.5, we're not continuing the development on this plugin.
+This doesn't mean that it's broken. The plugin works well for most of the people and helped thousands of people to migrate from a free multilingual plugin but without enough support and features to WPML, a more complete solution that also offers great support.**
+
+
+
 
 This plugin can either cleanup the qTranslate meta-HTML tags from your site and leave just one 'clean' language, or migrate all languages to WPML's format.
 
@@ -53,7 +59,7 @@ The import tool converts posts, meta data and taxonomy. We tried to take every p
 
 = Which version of WPML can I use this import with? =
 
-It's been tested on WPML 2.4.3 and above. Previous versions might work, but might have unpreditable behavior.
+It's been tested on WPML 2.4.3 and above. Previous versions might work, but might have unpredictable behavior.
 
 = Do I have to get WPML to use this? =
 
@@ -72,6 +78,12 @@ Upload the plugin to your blog, activate it.
 1. Import screen
 
 == Changelog ==
+
+= 1.5 =
+* Tested with WP 4.1
+* Changed title format to "%Original title% (%lang_code%)" if title not translate
+* Bug fix: terms not synchronized when used uppercase codes in qTranslate
+* Bug fix: translated posts not imported if title not translated
 
 = 1.4 =
 * Tested with WP 4.0

@@ -3,7 +3,7 @@
 Plugin Name: qTranslate Importer
 Plugin URI: http://wpml.org/documentation/related-projects/qtranslate-importer/
 Description: Imports qTranslate content to WPML, or just cleans up qTranslate meta tags
-Version: 1.4
+Version: 1.5
 Author: OntheGoSystems
 Author URI: http://wpml.org
 Tags: wpml, qtranslate, multilingual, translations
@@ -76,7 +76,7 @@ class QT_Importer{
         }
         $posts = $wpdb->get_col("
             SELECT ID FROM {$wpdb->posts} p 
-            WHERE {$where} post_title LIKE '<!--:%' AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
+            WHERE {$where} ( post_title LIKE '<!--:%' OR post_content LIKE '<!--:%' ) AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
             LIMIT " . self::BATCH_SIZE . "
         ");
         
@@ -92,7 +92,7 @@ class QT_Importer{
             // Are there more?        
             $posts = $wpdb->get_col("
                 SELECT ID FROM {$wpdb->posts} p 
-                WHERE ID NOT IN(" . join(',' , $processed_posts) . ") AND post_title LIKE '<!--:%' AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
+                WHERE ID NOT IN(" . join(',' , $processed_posts) . ") AND ( post_title LIKE '<!--:%' OR post_content LIKE '<!--:%' ) AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
                 LIMIT 1
             ");
             if($posts){
@@ -255,7 +255,7 @@ class QT_Importer{
                 $i++;
                 unset($term_translations[$key]);
 
-                $default_term = $term[$this->_lang_map($this->default_language)];
+                $default_term = $term[$this->default_language];
                 // get term id
                 $term_id = $wpdb->get_var($wpdb->prepare("SELECT term_id FROM {$wpdb->terms} WHERE name = %s", $default_term));
 
@@ -603,7 +603,7 @@ class QT_Importer{
         }
         $posts = $wpdb->get_col("
             SELECT ID FROM {$wpdb->posts} p 
-            WHERE {$where} post_title LIKE '<!--:%' AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
+            WHERE {$where} ( post_title LIKE '<!--:%' OR post_content LIKE '<!--:%' ) AND p.post_type NOT IN ('attachment', 'nav_menu_item', 'revision')
             LIMIT " . self::BATCH_SIZE . "
         ");
         
@@ -620,7 +620,7 @@ class QT_Importer{
             // Are there more?        
             $posts = $wpdb->get_col("
                 SELECT ID FROM {$wpdb->posts} p 
-                WHERE ID NOT IN(" . join(',' , $processed_posts) . ") AND post_title LIKE '<!--:%'
+                WHERE ID NOT IN(" . join(',' , $processed_posts) . ") AND ( post_title LIKE '<!--:%' OR post_content LIKE '<!--:%' )
                 LIMIT 1
             ");
             if($posts){
@@ -893,7 +893,7 @@ class QT_Importer{
             // handle empty titles
             foreach($active_languages as $language){
                 if(empty($langs[$language]['title']) && !empty($langs[$language]['content'])){
-                    $langs[$language]['title'] = 'Untitled-' . $language;
+                    $langs[$language]['title'] = $langs[$this->default_language]['title'].' (' . $language. ')';
                 }
             }    
             
